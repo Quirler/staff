@@ -56,6 +56,7 @@ void *push(void *ctx_) {
         /* end of crit section */
         fflush(stdout);
         pthread_mutex_unlock(&ctx->mtx);
+
         usleep(val*100);
     }
 }
@@ -91,6 +92,7 @@ void *pull(void *ctx_) {
         /* end crit section */
         fflush(stdout);
         pthread_mutex_unlock(&ctx->mtx);
+
         usleep(val*100);
     }
 }
