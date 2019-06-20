@@ -7,81 +7,93 @@
 #define RING_BUFFER_SIZE 15
 
 struct ring_buffer {
-    uint16_t *start;
-    uint16_t *head;
-    uint16_t *tail;
-    uint16_t size;
+    uint32_t *ring;
+    uint32_t head;
+    uint32_t tail;
+    uint32_t size;
 };
 
 /* init pointers and size of ring_buffer */
-void ring_buffer_init(struct ring_buffer *circle) {
-    circle->size = RING_BUFFER_SIZE;    /* get size for buffer */
-    circle->start = (uint16_t *)malloc(sizeof(uint16_t) * circle->size);    /* try malloc */
-    if(!circle->start) {    /* malloc failed, EXIT */
-        printf("malloc failed\n");
-        exit(EXIT_FAILURE);
+int ring_buffer_init(struct ring_buffer *circle) {
+    circle->size = RING_BUFFER_SIZE + 1;    /* set size for buffer, +1 for the real size */
+                                            /* cuz head == tail could mean empty or only 1 element*/
+    circle->ring = (uint32_t *)malloc(sizeof(uint32_t) * circle->size);    /* try malloc */
+
+    if(!circle->ring) {    /* malloc failed, return */
+        printf("ring buffer malloc failed\n");
+        return 0;
     }
-    circle->head = circle->start;   /* set head pointer */
-    circle->tail = circle->start;   /* set tail pointer */
+    circle->head = 0u;   /* set head index */
+    circle->tail = 0u;   /* set tail index */
+    return 1;
 }
 
 /* insert item into ring_buffer */
-int ring_buffer_push(struct ring_buffer *circle, uint16_t item) {
-    
-    uint16_t *overflow = circle->start + circle->size - 1;  /* temp pointer for last possible item */
-    uint16_t *next_head;    /* where we intent to go */
+uint8_t ring_buffer_push(struct ring_buffer *circle, uint32_t item) {
 
-    if(circle->head == overflow) {    /* here last available position */
-        next_head = circle->start;   /* next position outofrange -> start */
-    }
-    else {
-        next_head = circle->head + 1;   /* just incremented head */
+    /* find next head and tail indexes */
+    uint32_t head_next = (circle->head + 1 == circle->size) ? 0 : circle->head + 1;
+    uint32_t tail_next = (circle->tail + 1 == circle->size) ? 0 : circle->tail + 1;
+
+    /* check if ring buffer is full */
+    if(head_next == circle->tail) {
+        printf("ring buffer is full.\n");
+        return 0;   /* nothing left to do */
     }
 
-    if(next_head != circle->tail) { /* actual check for free space */
-        circle->head = next_head; /* we just calculated that its next correct position */
-        *circle->head = item;   /* include new item */
-        printf("item %u was added to the head\n", item);
-    }
-    else {
-        printf("Ring buffer is full!\n");    /* failed to write the new item */
-        return -1;  /* failed to write the new item */
-    }
+    /* move head */
+    circle->head = head_next;
+
+    /* set new item */
+    circle->ring[head_next] = item;
+
+    /* print newly set element */
+    printf("val %u was added to the head\n", item);
+
     return 1;   /* successfully written */
 }
 
 /* pop item from ring_buffer */
-void ring_buffer_pop(struct ring_buffer *circle, uint16_t *item) {
-    if(circle->tail == circle->head) {  /* nothing to pop */
-        printf("Ring buffer is empty!\n");
+uint32_t ring_buffer_pop(struct ring_buffer *circle) {
+
+    /* find next tail index and save current one */
+    uint32_t tail_next = (circle->tail + 1 == circle->size) ? 0u : circle->tail + 1;
+
+    /* check if ring buffer is empty */
+    if(circle->head == circle->tail) {
+        printf("ring buffer is empty.\n");
+        return 0;   /* nothing left to do */
     }
-    else {
-        uint16_t *overflow = circle->start + circle->size - 1;
-        if(circle->tail == overflow) {
-            circle->tail = circle->start;
-        }
-        else
-            circle->tail++;
-        
-        *item = *circle->tail;
-        printf("item %u was deleted from the tail\n", *item);
-    }
+
+    /* move tail */
+    circle->tail = tail_next;
+
+    /* print the popped item */
+    printf("val %u was popped from the tail.\n", circle->ring[tail_next]);
+
+    /* return last tail item */
+    return circle->ring[circle->tail];
 }
+
+#ifdef DEBUG
 
 void main(int argc, char **argv) {
     struct ring_buffer circle;
-    uint16_t item;
+    uint32_t item;
     uint32_t j;
+
     /* init pointers and size of ring_buffer */
     /* @EXIT 1 */
-    ring_buffer_init(&circle);
+    if(!ring_buffer_init(&circle)) {
+        exit(EXIT_FAILURE);
+    };
     
     for(j = 0; j < RING_BUFFER_SIZE + 5; ++j) {
         ring_buffer_push(&circle, 10 * j);
     }
 
     for(j = 0; j < RING_BUFFER_SIZE - 10; ++j) {
-        ring_buffer_pop(&circle, &item);
+        ring_buffer_pop(&circle);
     }
 
     for(j = 0; j < RING_BUFFER_SIZE - 13; ++j) {
@@ -89,9 +101,19 @@ void main(int argc, char **argv) {
     }
 
     for(j = 0; j < RING_BUFFER_SIZE + 10; ++j) {
-        ring_buffer_pop(&circle, &item);
+        ring_buffer_pop(&circle);
+    }
+
+    for(j = 0; j < RING_BUFFER_SIZE; ++j) {
+        ring_buffer_push(&circle, 10 * j);
+    }
+
+    for(j = 0; j < RING_BUFFER_SIZE; ++j) {
+        ring_buffer_pop(&circle);
     }
 
     // @EXIT 2
     exit(EXIT_SUCCESS);
 }
+
+#endif
