@@ -8,9 +8,9 @@
 
 #ifdef _RING_BUF_
 
-#define RING_BUF_SIZE 100
+#define RING_BUF_SIZE 10
 #define PRODUCERS 4
-#define CONSUMERS 3
+#define CONSUMERS 1
 
 void *produce(void *ctx) {
     /* get context with a cast */
@@ -23,13 +23,14 @@ void *produce(void *ctx) {
     while(1) {
 
         /* simulate exhausting job OUTSIDE THE MUTUAL ACTS */
-        long int i = 0;
+        long int i = 0, j = 0;
         while(i < 0x7FFFFFF) {
             if(i % 10000000 == 0) {
-                fprintf(stdout, "PRODUCER[%03lu] is WORKING to produce something\n", pthread_self() % 1000);
+                fprintf(stdout, "PRODUCER[%03lu] is WORKING to produce something progress(%02ld/13)\n", pthread_self() % 1000, j);
                 fflush(stdout);
+                ++j; 
             }
-            i++;
+            ++i;
         };
         // usleep(rand() % val);
 
@@ -39,9 +40,9 @@ void *produce(void *ctx) {
 
         /* while no free space mtx bouncing and wait consumer's signal */
         while(rb->occupied >= rb->size) {
-            pthread_cond_wait(&rb->cons, &rb->mtx);
             fprintf(stdout, "PRODUCER[%03lu] is WAITING for some free space\n", pthread_self() % 1000);
             fflush(stdout);
+            pthread_cond_wait(&rb->cons, &rb->mtx);
         }
 
         /* when there is some free space */
@@ -81,9 +82,9 @@ void *consume(void *ctx) {
 
         /* while there is no any data mtx bouncing and wait a producer's signal */
         while(rb->occupied <= 0u) {
-            pthread_cond_wait(&rb->prod, &rb->mtx);
             fprintf(stdout, "CONSUMER[%03lu] is WAITING for some available data\n", pthread_self() % 1000);
             fflush(stdout);
+            pthread_cond_wait(&rb->prod, &rb->mtx);
         }
 
         /* when there is some data available pop and*/
@@ -107,13 +108,14 @@ void *consume(void *ctx) {
 
 
         /* simulate exhausting job OUTSIDE THE MUTUAL ACTS */
-        int i = 0;
+        long int i = 0, j = 0;
         while(i < 0x7FFFFFF) {
-            i++;
             if(i % 10000000 == 0) {
-                fprintf(stdout, "CONSUMER[%03lu] is WORKING with popped data\n", pthread_self() % 1000);
+                fprintf(stdout, "CONSUMER[%03lu] is WORKING with popped data progress(%02ld/13)\n", pthread_self() % 1000, j);
                 fflush(stdout);
+                ++j;
             }
+            ++i;
         };
         // usleep(item);
     }
